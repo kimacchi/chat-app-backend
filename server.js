@@ -1,55 +1,46 @@
 const express = require("express");
 const cors = require("cors");
+const PocketBase = require('pocketbase/cjs')
+// import PocketBase from "pocketbase"
+const {Server} = require("socket.io");
+
+const pb = new PocketBase('http://127.0.0.1:8090');
 
 
 const PORT = 4545;
 const app = express();
 const http = require("http").createServer(app);
 
-const io = require("socket.io")(http, {
+const io = new Server(http, {
     cors: {
-        origin: "*",
+        "origin": "*"
     }
 })
-
-app.get("/", (req,res) => {
-    res.send("Hello world!");
-})
-
-let userList = new Map();
 
 io.on("connection", (socket) => {
-    let username = socket.handshake.query.username;
-    addUser(username, socket.id);
-
-    socket.broadcast.emit("user-list", [...userList.keys()])
-    socket.on("message", (msg)=>{
-        socket.broadcast.emit("message-broadcast", {
-            message: msg,
-            username: username
-        })
+    console.log("user connected: "+socket.id);
+    socket.on("join_chat", (data) => {
+        socket.join(data);
+        console.log(`User with id: ${socket.id} joined a chat: ${data}`)
     })
-    socket.on("disconnect", (reason) => {
-        deleteUser(username, socket.id)
+    socket.on("send_data", (data) => {
+        
+    })
+    socket.on("disconnect", () => {
+        console.log("user disconnected: "+ socket.id);
     })
 })
 
-function addUser(username, id){
-    if(!userList.has(username)){
-        userList.set(username, new Set(id))
-    } else{
-        userList.get(username).add(id);
-    }
-}
 
-function deleteUser(username, id){
-    if(userList.has(username)){
-        let userIds = userList.get(username);
-        if(userIds.size == 0){
-            userList.delete(username)
-        }
-    }
-}
+app.get("/", async (req,res) => {
+    const records = await pb.collection('chat').getFullList({
+        sort: '-created',
+        expand:"messages"
+    })
+    res.send(records)
+})
+
+
 
 http.listen(PORT, () => {
     console.log("server is running");
