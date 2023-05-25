@@ -6,6 +6,8 @@ const {
   getUsers,
   getUser,
   addChat,
+  addMessage,
+  getMessage
 } = require("./actions/databaseActions");
 const bodyParser = require("body-parser");
 // import PocketBase from "pocketbase"
@@ -32,14 +34,14 @@ io.on("connection", (socket) => {
   console.log("user connected: " + socket.id);
   socket.on("join_chat", (data) => {
     socket.join(data.room);
-    console.log(data);
     console.log(`User with id: ${socket.id} joined a chat: ${data.room}`);
     // add chat to database
     addChat(data.room, data.from, data.to)
   });
   socket.on("send_data", (data) => {
-    console.log(data);
+    console.log(data, "send_data");
     socket.to(data.room).emit("recieve_message", data);
+    addMessage(data.message, data.from, data.room, data.to)
     // add message to the database
   });
   socket.on("disconnect", () => {
@@ -63,6 +65,12 @@ app.post("/users", bodyParser.json(), async (req, res) => {
   const user = addUserToDatabase(req.body.username);
   res.send(user);
 });
+
+app.get("/messages", async (req,res)=>{
+  const id = req.query.id;
+  console.log("id: ", id)
+  res.send(await getMessage(id));
+})
 
 // TODO: create a patch request for updating the user's active chats
 

@@ -54,9 +54,34 @@ const addChat = async(chatId, fromId, toId) => {
             "username": user.username
         })
     }
+}
 
-    // if(!(await pb.collection("chat").getOne(chatId))){
-    // }
+const addMessage = async (message, from, chat, to) => {
+    const record = await pb.collection("message").create({
+        text: message,
+        from: from,
+        to: to
+    })
+    const chatRecords = await pb.collection("chat").getFullList({
+        filter: `chatId ='${chat}'`
+    })
+    if(chatRecords.length > 0){
+        await pb.collection("chat").update(chatRecords[0].id, {
+            messages:[
+                ...chatRecords[0].messages,
+                record.id
+            ]
+        })
+    }
+}
+
+
+const getMessage = async (id) => {
+    const resultList = await pb.collection("message").getList(1,50,{
+        filter: `from = '${id}' || to = '${id}'`
+    })
+    const user = await pb.collection("users").getOne(id);
+    return {...resultList, username: user.username}
 }
 
 
@@ -64,5 +89,7 @@ module.exports = {
     addUserToDatabase,
     getUsers,
     getUser,
-    addChat
+    addChat,
+    addMessage,
+    getMessage
 }
